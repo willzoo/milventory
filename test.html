@@ -1,0 +1,768 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Robotics Room — Zoomable Map with Randomized Tooltips</title>
+<style>
+  :root {
+    --aspect-w: 7;
+    --aspect-h: 8;
+
+    /* dark theme */
+    --panel: #0e1116;
+    --room:  #1b1f2a;     /* not white */
+    --stroke:#0a0d12;
+    --accent:#9bb7ff;     /* connector arrow */
+    --text:  #e6ebf4;
+    --muted: #9aa8c2;
+
+    /* darker items */
+    --drawer:#1e8a4a;     /* green drawers */
+    --table: #0d86b5;     /* blue tables */
+    --files: #b72a2a;     /* red file cabinets */
+  }
+
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: radial-gradient(1200px 800px at 50% 0%, #0d0f14, #07080c);
+    color: var(--text);
+    font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    display: flex;
+    overflow: hidden;
+  }
+
+  .wrap {
+    width: calc(100% - 300px);
+    height: 100%;
+    position: relative; border-radius: 0; overflow: hidden;
+    background: var(--panel); box-shadow: 0 20px 60px rgba(0,0,0,.45);
+  }
+
+  .right-tab {
+    width: 300px;
+    height: 100%;
+    background: var(--panel);
+    border-left: 1px solid rgba(255,255,255,.08);
+    box-shadow: -2px 0 10px rgba(0,0,0,.2);
+    overflow-y: auto;
+    padding: 1rem;
+  }
+
+  .right-tab h2 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.2rem;
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .inventory-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    font-size: 0.85rem;
+  }
+
+  .inventory-table th {
+    background: rgba(0,0,0,.3);
+    color: var(--muted);
+    text-align: left;
+    padding: 0.5rem;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+  }
+
+  .inventory-table td {
+    padding: 0.5rem;
+    border-bottom: 1px solid rgba(255,255,255,.05);
+    color: var(--text);
+  }
+
+  .inventory-table tbody tr {
+    cursor: move;
+    transition: background-color 0.2s;
+  }
+
+  .inventory-table tbody tr:hover {
+    background: rgba(255,255,255,.05);
+  }
+
+  .inventory-table tbody tr.dragging {
+    opacity: 0.5;
+    background: rgba(155, 183, 255, 0.1);
+  }
+
+  .inventory-table tbody tr.drag-over {
+    border-top: 2px solid var(--accent);
+  }
+
+  .inventory-table .qty-cell {
+    width: 60px;
+    text-align: right;
+  }
+
+  .inventory-table .name-cell input,
+  .inventory-table .qty-cell input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: inherit;
+    padding: 0.25rem;
+    outline: none;
+  }
+
+  /* Hide default number input spinners */
+  .inventory-table .qty-cell input[type="number"]::-webkit-inner-spin-button,
+  .inventory-table .qty-cell input[type="number"]::-webkit-outer-spin-button,
+  .add-row input[type="number"]::-webkit-inner-spin-button,
+  .add-row input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .inventory-table .qty-cell input[type="number"],
+  .add-row input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  /* Custom spinner buttons for quantity inputs */
+  .qty-input-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+  }
+
+  .qty-spinner {
+    position: absolute;
+    right: 2px;
+    display: flex;
+    flex-direction: column;
+    height: calc(100% - 4px);
+    width: 18px;
+    pointer-events: none;
+  }
+
+  .qty-spinner-btn {
+    flex: 1;
+    background: rgba(255,255,255,.08);
+    border: none;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 10px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: all;
+    transition: background 0.2s;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .qty-spinner-btn:first-child {
+    border-radius: 3px 3px 0 0;
+    border-bottom: 1px solid rgba(255,255,255,.05);
+  }
+
+  .qty-spinner-btn:last-child {
+    border-radius: 0 0 3px 3px;
+  }
+
+  .qty-spinner-btn:hover {
+    background: rgba(155, 183, 255, 0.2);
+  }
+
+  .qty-spinner-btn:active {
+    background: rgba(155, 183, 255, 0.3);
+  }
+
+  .qty-cell .qty-input-wrapper {
+    width: 100%;
+  }
+
+  .qty-cell input[type="number"] {
+    padding-right: 22px;
+  }
+
+  .inventory-table .name-cell input:focus,
+  .inventory-table .qty-cell input:focus {
+    background: rgba(255,255,255,.08);
+    border-radius: 4px;
+  }
+
+  .inventory-separator {
+    border-top: 2px solid rgba(255,255,255,.15);
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+  }
+
+  .add-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-top: 0.5rem;
+    width: 100%;
+    box-sizing: border-box;
+    max-width: 100%;
+  }
+
+  .add-row input {
+    flex: 1 1 0;
+    min-width: 0;
+    background: rgba(0,0,0,.3);
+    border: 1px solid rgba(255,255,255,.1);
+    color: var(--text);
+    padding: 0.4rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    outline: none;
+    box-sizing: border-box;
+  }
+
+  .add-row input:focus {
+    border-color: var(--accent);
+    background: rgba(0,0,0,.4);
+  }
+
+  .add-row input[name="qty"] {
+    width: 70px;
+    flex: none;
+    text-align: right;
+    padding-right: 24px;
+  }
+
+  .add-row .qty-input-wrapper {
+    width: 70px;
+    flex: none;
+  }
+
+  .add-row button {
+    background: var(--accent);
+    color: var(--panel);
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: opacity 0.2s;
+    flex-shrink: 0;
+  }
+
+  .add-row button:hover {
+    opacity: 0.9;
+  }
+
+  .add-row button:active {
+    opacity: 0.8;
+  }
+
+  .right-tab .inventory-list.empty {
+    color: var(--muted);
+    font-style: italic;
+    margin-top: 1rem;
+  }
+
+  .box.selected {
+    filter: brightness(1.15);
+    stroke: var(--accent);
+    stroke-width: 5;
+  }
+
+  svg#map { width: 100%; height: 100%; display: block; touch-action: none; user-select: none; }
+  svg#overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  svg#overlay { display: none; }
+
+
+  .room { fill: var(--room); stroke: #2c3344; stroke-width: 6; }
+
+  .box {
+    vector-effect: non-scaling-stroke;
+    stroke: var(--stroke); stroke-width: 4; rx: 10; ry: 10; cursor: pointer;
+  }
+  .box:hover { filter: brightness(1.06); }
+
+  .titlebar {
+    position: absolute; inset: 12px 12px auto 12px;
+    background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.08);
+    color: var(--text); padding: .4rem .6rem; border-radius: 12px; font-size: 13px;
+  }
+  .kbd { background:#0008;border:1px solid #fff2;padding:0 .35rem;border-radius:6px;font-size:12px;margin:0 .15rem; }
+
+  .tooltip {
+    position: absolute; pointer-events: none; display: none;
+    background: #0f1420; color: var(--text);
+    border: 1px solid #2a3244; border-radius: 10px; padding: .55rem .7rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,.4); font-weight: 500;
+    transform: translate(-50%, -50%);
+    white-space: normal;           /* allow wrapping */
+    max-width: 260px;
+  }
+  .tooltip .sub { display:block; font-size:12px; color:var(--muted); margin-top:4px; font-weight:400; }
+</style>
+</head>
+<body>
+
+<div class="wrap" id="wrap">
+  <div class="titlebar">Zoom: <span class="kbd">wheel</span> · Pan: <span class="kbd">drag</span> · Hover for name · Click for details</div>
+
+  <!-- Map -->
+  <svg id="map" viewBox="0 0 1600 1800" aria-label="Room map">
+    <g id="world">
+      <!-- room outline -->
+      <rect class="room" x="80" y="80" width="1440" height="1600" rx="18" ry="18"/>
+
+      <!-- workbench (down) -->
+      <rect class="box" x="140" y="300" width="150" height="170" fill="#e7ebf3"
+            data-title="Workbench"/>
+
+      <!-- file cabinets (down) -->
+      <rect class="box" data-title="File Cabinet A"
+            x="140" y="700" width="200" height="260" fill="var(--files)"/>
+      <rect class="box" data-title="File Cabinet B"
+            x="140" y="1000" width="200" height="260" fill="var(--files)"/>
+
+      <!-- drawers (top) -->
+      <g id="drawers-top" fill="var(--drawer)">
+        <rect class="box" data-title="Drawer T1" x="200"  y="120" width="190" height="120"/>
+        <rect class="box" data-title="Drawer T2" x="410"  y="120" width="190" height="120"/>
+        <rect class="box" data-title="Drawer T3" x="620"  y="120" width="190" height="120"/>
+        <rect class="box" data-title="Drawer T4" x="830"  y="120" width="190" height="120"/>
+        <rect class="box" data-title="Drawer T5" x="1040" y="120" width="190" height="120"/>
+        <rect class="box" data-title="Drawer T6" x="1250" y="120" width="190" height="120"/>
+      </g>
+
+      <!-- drawers (right) -->
+      <g id="drawers-right" fill="var(--drawer)">
+        <rect class="box" data-title="Drawer R1" x="1350" y="320" width="170" height="170"/>
+        <rect class="box" data-title="Drawer R2" x="1350" y="520" width="170" height="170"/>
+        <rect class="box" data-title="Drawer R3" x="1350" y="720" width="170" height="170"/>
+        <rect class="box" data-title="Drawer R4" x="1350" y="920" width="170" height="170"/>
+        <rect class="box" data-title="Drawer R5" x="1350" y="1120" width="170" height="170"/>
+      </g>
+
+      <!-- tables (left) -->
+      <rect class="box" data-title="Table A" x="420" y="520" width="300" height="200" fill="var(--table)"/>
+      <rect class="box" data-title="Table B" x="880" y="520" width="300" height="200" fill="var(--table)"/>
+      <rect class="box" data-title="Table C" x="420" y="940" width="300" height="200" fill="var(--table)"/>
+      <rect class="box" data-title="Table D" x="880" y="940" width="300" height="200" fill="var(--table)"/>
+    </g>
+  </svg>
+
+  <!-- Arrow overlay -->
+  <svg id="overlay" viewBox="0 0 1600 1800" preserveAspectRatio="none">
+    <defs>
+      <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L8,3 L0,6 Z" fill="var(--accent)"></path>
+      </marker>
+    </defs>
+    <path id="connector" d="M0,0 L0,0" stroke="var(--accent)" stroke-width="3"
+          marker-end="url(#arrowhead)" fill="none" opacity="0"></path>
+  </svg>
+
+  <!-- Tooltip -->
+  <div id="tooltip" class="tooltip" role="tooltip" aria-hidden="true">
+    <span id="tip-title"></span>
+  </div>
+</div>
+
+<div class="right-tab">
+  <h2 id="pane-title">Select an item</h2>
+  <div id="pane-inventory">
+    <div class="inventory-list empty">Click on any inventory box to view its contents.</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script>
+(function(){
+  const wrap = document.getElementById('wrap');
+  const svg  = document.getElementById('map');
+  const world = document.getElementById('world');
+  const connector = document.getElementById('connector');
+  const tip  = document.getElementById('tooltip');
+  const tipTitle = document.getElementById('tip-title');
+  const paneTitle = document.getElementById('pane-title');
+  const paneInventory = document.getElementById('pane-inventory');
+
+  // --- Random robotics items ---------------------------------
+  const pool = [
+    "NEMA17 stepper motors","metal gear servos","brushless ESCs","PWM fan modules",
+    "Arduino Nano boards","Teensy 4.1","Raspberry Pi 4","Jetson Nano heatsink",
+    "LiPo 3S packs","LiFePO4 cells","XT60 connectors","balance chargers",
+    "buck converters","MOSFET driver boards","relay modules","optocouplers",
+    "ultrasonic HC-SR04","VL53L0X ToF sensors","bno055 IMU","9-axis IMU",
+    "AS5600 encoders","optical encoders","hall effect sensors","limit switches",
+    "HS-311 servos","SG90 micro servos","MG996R servo horns","servo extension leads",
+    "GT2 belts","60T/20T pulleys","planetary gearboxes","shaft couplers",
+    "608ZZ bearings","idler pulleys","linear rails MGN12","lead screws T8",
+    "M3 socket screws","M4 nyloc nuts","brass heat inserts","standoffs assortment",
+    "aluminum extrusion 2020","corner brackets","t-nuts and bolts","L-brackets",
+    "breadboards","jumper wires","Dupont housings","crimp terminals",
+    "soldering tips","flux pens","Kapton tape","heat-shrink tubing",
+    "zip ties","Velcro straps","PTFE tube","silicone wire 18AWG",
+    "OpenCV calibration targets","AprilTags","ArUco markers","LED ring lights",
+    "I2C cables","CAN transceivers","RS-485 adapters","UART-USB bridges",
+    "pneumatic solenoids","push-to-connect fittings","polyurethane tubing","mini air pump",
+    "odometry wheels","omni wheels"," mecanum wheels","urethane rollers",
+    "grease & Loctite","thermal pads","spare nozzles","3D printer filament PETG",
+    "datasheets & wiring diagrams","maintenance logs","purchase orders","test reports"
+  ];
+
+  function sample(arr, k) {
+    const copy = [...arr];
+    const out = [];
+    while (k-- && copy.length) {
+      const i = Math.floor(Math.random() * copy.length);
+      out.push(copy.splice(i,1)[0]);
+    }
+    return out;
+  }
+
+  // Store inventory data for each box
+  const inventoryData = new Map();
+
+  // Assign random "contents" to every box
+  document.querySelectorAll('.box').forEach((el) => {
+    const items = sample(pool, 4);
+    // Create inventory array with random quantities
+    const inventory = items.map(name => ({
+      name: name.trim(),
+      qty: Math.floor(Math.random() * 5) + 1
+    }));
+    inventoryData.set(el, inventory);
+    el.dataset.sub = items.join(", "); // Keep for backward compatibility
+    if (!el.dataset.title) el.dataset.title = "Container";
+  });
+
+  // Make workbench/tool-specific flavor
+  const workbench = document.querySelector('[data-title="Workbench"]');
+  if (workbench) {
+    const workbenchItems = sample([
+      "ESD mat & wrist strap","hot air rework station","fine-tip soldering iron",
+      "PCB vise & magnifier lamp","smoke absorber fan","bin of spare 0603 passives",
+      "oscilloscope probes & logic analyzer","calipers & torque screwdriver"
+    ], 4);
+    const inventory = workbenchItems.map(name => ({
+      name: name.trim(),
+      qty: Math.floor(Math.random() * 5) + 1
+    }));
+    inventoryData.set(workbench, inventory);
+    workbench.dataset.sub = workbenchItems.join(", ");
+  }
+
+  // --- Zoom / Pan --------------------------------------------
+  const zoom = d3.zoom()
+    .scaleExtent([0.6, 6])
+    .on('zoom', (e) => {
+      world.setAttribute('transform', e.transform);
+      if (tip.style.display === 'block' && currentTarget) positionTooltip(currentTarget);
+    });
+  d3.select(svg).call(zoom).on('dblclick.zoom', null);
+  d3.select(svg).call(zoom.transform, d3.zoomIdentity.scale(1.03));
+
+  // --- Hover tooltips (name only) ----------------------------
+  let currentTarget = null;
+  let selectedBox = null;
+  
+  svg.querySelectorAll('.box').forEach(el => {
+    el.addEventListener('mouseenter', () => {
+      currentTarget = el;
+      tipTitle.textContent = el.dataset.title || 'Item';
+      tip.style.display = 'block';
+      tip.setAttribute('aria-hidden', 'false');
+      positionTooltip(el);
+    });
+    el.addEventListener('mousemove', () => { if (currentTarget === el) positionTooltip(el); });
+    el.addEventListener('mouseleave', () => {
+      if (currentTarget === el) {
+        currentTarget = null;
+        tip.style.display = 'none';
+        tip.setAttribute('aria-hidden', 'true');
+        connector.style.opacity = 0;
+      }
+    });
+    
+    // --- Click handler for right pane -------------------------
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      
+      // Remove previous selection
+      if (selectedBox) {
+        selectedBox.classList.remove('selected');
+      }
+      
+      // Add selection to clicked box
+      el.classList.add('selected');
+      selectedBox = el;
+      
+      // Update right pane
+      const title = el.dataset.title || 'Item';
+      const inventory = inventoryData.get(el) || [];
+      
+      paneTitle.textContent = title;
+      renderInventoryTable(inventory, el);
+    });
+  });
+
+  // --- Inventory Table Rendering ------------------------------
+  function renderInventoryTable(inventory, boxElement) {
+    if (!inventory || inventory.length === 0) {
+      paneInventory.innerHTML = '<div class="inventory-list empty">No inventory listed.</div>';
+      return;
+    }
+
+    let html = '<table class="inventory-table">';
+    html += '<thead><tr><th>Name</th><th class="qty-cell">Qty</th></tr></thead>';
+    html += '<tbody id="inventory-tbody">';
+    
+    inventory.forEach((item, index) => {
+      html += `<tr data-index="${index}" draggable="true">
+        <td class="name-cell"><input type="text" value="${escapeHtml(item.name)}" data-field="name"></td>
+        <td class="qty-cell">
+          <div class="qty-input-wrapper">
+            <input type="number" value="${item.qty}" data-field="qty" min="0">
+            <div class="qty-spinner">
+              <button type="button" class="qty-spinner-btn" data-action="increment">▲</button>
+              <button type="button" class="qty-spinner-btn" data-action="decrement">▼</button>
+            </div>
+          </div>
+        </td>
+      </tr>`;
+    });
+    
+    html += '</tbody></table>';
+    html += '<div class="inventory-separator"></div>';
+    html += '<div class="add-row">';
+    html += '<input type="text" name="name" placeholder="Item name">';
+    html += '<div class="qty-input-wrapper">';
+    html += '<input type="number" name="qty" placeholder="Qty" value="1" min="0">';
+    html += '<div class="qty-spinner">';
+    html += '<button type="button" class="qty-spinner-btn" data-action="increment">▲</button>';
+    html += '<button type="button" class="qty-spinner-btn" data-action="decrement">▼</button>';
+    html += '</div></div>';
+    html += '<button id="add-item-btn">+</button>';
+    html += '</div>';
+    
+    paneInventory.innerHTML = html;
+    
+    // Setup event listeners
+    setupInventoryTable(boxElement);
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function setupInventoryTable(boxElement) {
+    const tbody = document.getElementById('inventory-tbody');
+    if (!tbody) return;
+
+    // Input change handlers
+    tbody.querySelectorAll('input').forEach(input => {
+      input.addEventListener('change', () => {
+        const row = input.closest('tr');
+        const index = parseInt(row.dataset.index);
+        const inventory = inventoryData.get(boxElement);
+        if (inventory[index]) {
+          inventory[index][input.dataset.field] = input.dataset.field === 'qty' 
+            ? parseInt(input.value) || 0 
+            : input.value.trim();
+          saveInventory(boxElement);
+        }
+      });
+    });
+
+    // Custom spinner button handlers for table rows
+    tbody.querySelectorAll('.qty-spinner-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const row = btn.closest('tr');
+        const index = parseInt(row.dataset.index);
+        const input = row.querySelector('input[data-field="qty"]');
+        const inventory = inventoryData.get(boxElement);
+        
+        if (inventory[index] && input) {
+          let currentValue = parseInt(input.value) || 0;
+          if (btn.dataset.action === 'increment') {
+            currentValue++;
+          } else if (btn.dataset.action === 'decrement' && currentValue > 0) {
+            currentValue--;
+          }
+          input.value = currentValue;
+          inventory[index].qty = currentValue;
+          saveInventory(boxElement);
+        }
+      });
+    });
+
+    // Drag and drop
+    let draggedRow = null;
+    let draggedIndex = null;
+
+    tbody.querySelectorAll('tr').forEach((row, index) => {
+      row.addEventListener('dragstart', (e) => {
+        draggedRow = row;
+        draggedIndex = index;
+        row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', row.innerHTML);
+      });
+
+      row.addEventListener('dragend', () => {
+        row.classList.remove('dragging');
+        tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+      });
+
+      row.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const afterElement = getDragAfterElement(tbody, e.clientY);
+        tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+        if (afterElement == null || afterElement === row) {
+          row.classList.add('drag-over');
+        }
+      });
+
+      row.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (draggedRow !== row) {
+          const inventory = inventoryData.get(boxElement);
+          const items = [...inventory];
+          const draggedItem = items[draggedIndex];
+          items.splice(draggedIndex, 1);
+          
+          // Calculate drop index - need to account for the fact that draggedRow is still in DOM
+          const allRows = Array.from(tbody.children);
+          let dropIndex = allRows.indexOf(row);
+          
+          // Adjust index if dragging forward
+          if (draggedIndex < dropIndex) {
+            dropIndex--;
+          }
+          
+          items.splice(dropIndex, 0, draggedItem);
+          
+          inventoryData.set(boxElement, items);
+          renderInventoryTable(items, boxElement);
+        }
+      });
+    });
+
+    // Add new item button
+    const addBtn = document.getElementById('add-item-btn');
+    const nameInput = document.querySelector('input[name="name"]');
+    const qtyInput = document.querySelector('input[name="qty"]');
+    
+    addBtn.addEventListener('click', () => {
+      const name = nameInput.value.trim();
+      const qty = parseInt(qtyInput.value) || 0;
+      
+      if (name) {
+        const inventory = inventoryData.get(boxElement) || [];
+        inventory.push({ name, qty });
+        inventoryData.set(boxElement, inventory);
+        renderInventoryTable(inventory, boxElement);
+        nameInput.value = '';
+        qtyInput.value = '1';
+      }
+    });
+
+    // Custom spinner button handlers for add-row
+    const addRowSpinners = document.querySelectorAll('.add-row .qty-spinner-btn');
+    addRowSpinners.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const qtyInput = document.querySelector('.add-row input[name="qty"]');
+        if (qtyInput) {
+          let currentValue = parseInt(qtyInput.value) || 0;
+          if (btn.dataset.action === 'increment') {
+            currentValue++;
+          } else if (btn.dataset.action === 'decrement' && currentValue > 0) {
+            currentValue--;
+          }
+          qtyInput.value = currentValue;
+        }
+      });
+    });
+
+    // Allow Enter key to add item
+    if (nameInput) {
+      nameInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          addBtn.click();
+        }
+      });
+    }
+    if (qtyInput) {
+      qtyInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          addBtn.click();
+        }
+      });
+    }
+  }
+
+  function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('tr:not(.dragging)')];
+    
+    return draggableElements.reduce((closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      
+      if (offset < 0 && offset > closest.offset) {
+        return { offset: offset, element: child };
+      } else {
+        return closest;
+      }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+  }
+
+  function saveInventory(boxElement) {
+    const inventory = inventoryData.get(boxElement) || [];
+    // Update the data attribute for backward compatibility
+    const items = inventory.map(item => item.name).join(", ");
+    boxElement.dataset.sub = items;
+  }
+
+  // --- Tooltip/connector positioning -------------------------
+  function positionTooltip(target){
+    const rectBox = target.getBoundingClientRect();
+    const wrapBox = wrap.getBoundingClientRect();
+    const cx = rectBox.left + rectBox.width/2 - wrapBox.left;
+    const cy = rectBox.top  + rectBox.height/2 - wrapBox.top;
+
+    const placeRight = cx < wrapBox.width * 0.55;
+    tip.style.left = '0px'; tip.style.top = '0px';
+    const tw = tip.offsetWidth;
+    const pad = 14;
+
+    const tipX = cx;
+    const tipY = cy;
+
+    tip.style.transform = `translate(${Math.round(tipX)}px, ${Math.round(tipY)}px)`;
+    tip.style.display = 'block';
+
+    const scaleX = 1600 / wrapBox.width;
+    const scaleY = 1800 / wrapBox.height;
+    const tipEdgeX = (tipX + (placeRight ? -tw/2 : tw/2));
+    const tipEdgeY = tipY;
+
+    connector.setAttribute('d', `M ${tipEdgeX*scaleX},${tipEdgeY*scaleY} L ${cx*scaleX},${cy*scaleY}`);
+    connector.style.opacity = 1;
+  }
+
+  window.addEventListener('resize', () => { if (currentTarget) positionTooltip(currentTarget); });
+})();
+</script>
+</body>
+</html>
