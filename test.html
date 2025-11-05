@@ -99,11 +99,6 @@
     border-top: 2px solid var(--accent);
   }
 
-  .inventory-table .qty-cell {
-    width: 60px;
-    text-align: right;
-  }
-
   .inventory-table .name-cell input,
   .inventory-table .qty-cell input {
     width: 100%;
@@ -139,7 +134,7 @@
 
   .qty-spinner {
     position: absolute;
-    right: 2px;
+    left: 2px;
     display: flex;
     flex-direction: column;
     height: calc(100% - 4px);
@@ -186,7 +181,7 @@
   }
 
   .qty-cell input[type="number"] {
-    padding-right: 22px;
+    padding-left: 22px;
   }
 
   .inventory-table .name-cell input:focus,
@@ -232,8 +227,7 @@
   .add-row input[name="qty"] {
     width: 70px;
     flex: none;
-    text-align: right;
-    padding-right: 24px;
+    padding-left: 24px;
   }
 
   .add-row .qty-input-wrapper {
@@ -526,11 +520,11 @@
         <td class="name-cell"><input type="text" value="${escapeHtml(item.name)}" data-field="name"></td>
         <td class="qty-cell">
           <div class="qty-input-wrapper">
-            <input type="number" value="${item.qty}" data-field="qty" min="0">
             <div class="qty-spinner">
               <button type="button" class="qty-spinner-btn" data-action="increment">▲</button>
               <button type="button" class="qty-spinner-btn" data-action="decrement">▼</button>
             </div>
+            <input type="number" value="${item.qty}" data-field="qty" min="0">
           </div>
         </td>
       </tr>`;
@@ -541,11 +535,12 @@
     html += '<div class="add-row">';
     html += '<input type="text" name="name" placeholder="Item name">';
     html += '<div class="qty-input-wrapper">';
-    html += '<input type="number" name="qty" placeholder="Qty" value="1" min="0">';
     html += '<div class="qty-spinner">';
     html += '<button type="button" class="qty-spinner-btn" data-action="increment">▲</button>';
     html += '<button type="button" class="qty-spinner-btn" data-action="decrement">▼</button>';
-    html += '</div></div>';
+    html += '</div>';
+    html += '<input type="number" name="qty" placeholder="Qty" value="1" min="0">';
+    html += '</div>';
     html += '<button id="add-item-btn">+</button>';
     html += '</div>';
     
