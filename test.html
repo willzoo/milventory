@@ -124,7 +124,7 @@
   }
 
   .inventory-table .qty-cell input {
-    width: 100%;
+    width: 40px;
     background: transparent;
     border: none;
     color: var(--text);
@@ -204,7 +204,7 @@
   }
 
   .qty-cell input[type="number"] {
-    padding-left: 22px;
+    padding-left: 25px;
   }
 
   .inventory-table .name-cell input:focus,
@@ -285,34 +285,26 @@
     margin-top: 1rem;
   }
 
-  .edit-form-wrapper {
+  .edit-form {
     position: absolute;
-    bottom: 0;
+    bottom: 32px;
     left: 0;
     right: 0;
-    width: 300px;
     height: 300px;
-    z-index: 100;
-    display: none;
-    box-sizing: border-box;
-  }
-
-  .edit-form-wrapper.visible {
-    display: block;
-  }
-
-  .edit-form {
-    height: 100%;
-    width: 100%;
     background: var(--panel);
     border-top: 1px solid rgba(255,255,255,.08);
     box-shadow: 0 -2px 10px rgba(0,0,0,.2);
     padding: 1rem;
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 0.75rem;
     box-sizing: border-box;
     overflow: hidden;
+    z-index: 100;
+  }
+
+  .edit-form.visible {
+    display: flex;
   }
 
   .edit-form h3 {
@@ -490,15 +482,13 @@
   <div id="pane-inventory">
     <div class="inventory-list empty">Click on any inventory box to view its contents.</div>
   </div>
-  <div class="edit-form-wrapper" id="edit-form-wrapper">
-    <div class="edit-form" id="edit-form">
-      <h3>Edit Item</h3>
-      <input type="text" id="edit-name" placeholder="Item name">
-      <textarea id="edit-description" placeholder="Description (optional)"></textarea>
-      <div class="edit-form-actions">
-        <button type="button" class="cancel" id="edit-cancel">Cancel</button>
-        <button type="button" class="save" id="edit-save">Save</button>
-      </div>
+  <div class="edit-form" id="edit-form">
+    <h3>Edit Item</h3>
+    <input type="text" id="edit-name" placeholder="Item name">
+    <textarea id="edit-description" placeholder="Description (optional)"></textarea>
+    <div class="edit-form-actions">
+      <button type="button" class="cancel" id="edit-cancel">Cancel</button>
+      <button type="button" class="save" id="edit-save">Save</button>
     </div>
   </div>
 </div>
@@ -514,7 +504,6 @@
   const tipTitle = document.getElementById('tip-title');
   const paneTitle = document.getElementById('pane-title');
   const paneInventory = document.getElementById('pane-inventory');
-  const editFormWrapper = document.getElementById('edit-form-wrapper');
   const editForm = document.getElementById('edit-form');
   const editName = document.getElementById('edit-name');
   const editDescription = document.getElementById('edit-description');
@@ -736,7 +725,7 @@
           editDescription.value = inventory[index].description || '';
           
           // Show edit form
-          editFormWrapper.classList.add('visible');
+          editForm.classList.add('visible');
           editName.focus();
         }
       });
@@ -916,7 +905,7 @@
           renderInventoryTable(inventory, currentEditingBox);
           
           // Hide form
-          editFormWrapper.classList.remove('visible');
+          editForm.classList.remove('visible');
           currentEditingBox = null;
           currentEditingIndex = null;
         }
@@ -925,7 +914,7 @@
   });
 
   editCancel.addEventListener('click', () => {
-    editFormWrapper.classList.remove('visible');
+    editForm.classList.remove('visible');
     const tbody = document.getElementById('inventory-tbody');
     if (tbody) {
       tbody.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
