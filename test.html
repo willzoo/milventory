@@ -30,17 +30,18 @@
     font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
     display: flex;
     overflow: hidden;
+    --right-tab-width: 300px;
   }
 
   .wrap {
-    width: calc(100% - 300px);
+    width: calc(100% - var(--right-tab-width));
     height: 100%;
     position: relative; border-radius: 0; overflow: hidden;
     background: var(--panel); box-shadow: 0 20px 60px rgba(0,0,0,.45);
   }
 
   .right-tab {
-    width: 300px;
+    width: var(--right-tab-width);
     height: 100%;
     background: var(--panel);
     border-left: 1px solid rgba(255,255,255,.08);
@@ -48,6 +49,51 @@
     overflow-y: auto;
     padding: 1rem;
     position: relative;
+    --edit-form-height: 400px;
+    --edit-form-bottom-offset: 32px;
+    --edit-pane-total-height: var(--edit-form-height);
+  }
+
+  /* Resize handle for right pane (left edge) */
+  .right-tab-resize {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    cursor: ew-resize;
+    background: transparent;
+    z-index: 10;
+    transition: background 0.2s;
+  }
+
+  .right-tab-resize:hover {
+    background: var(--accent);
+  }
+
+  .right-tab-resize.dragging {
+    background: var(--accent);
+  }
+
+  /* Resize handle for edit form (top edge) */
+  .edit-form-resize {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    cursor: ns-resize;
+    background: transparent;
+    z-index: 101;
+    transition: background 0.2s;
+  }
+
+  .edit-form-resize:hover {
+    background: var(--accent);
+  }
+
+  .edit-form-resize.dragging {
+    background: var(--accent);
   }
 
   .right-tab h2 {
@@ -55,6 +101,12 @@
     font-size: 1.2rem;
     color: var(--text);
     font-weight: 600;
+  }
+
+  #pane-inventory {
+    max-height: calc(100vh - var(--edit-pane-total-height) - 4rem);
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .inventory-table {
@@ -337,15 +389,15 @@
 
   .edit-form {
     position: absolute;
-    bottom: 32px;
+    bottom: var(--edit-form-bottom-offset);
     left: 0;
     right: 0;
-    height: 300px;
+    height: var(--edit-form-height);
     background: var(--panel);
     border-top: 1px solid rgba(255,255,255,.08);
     box-shadow: 0 -2px 10px rgba(0,0,0,.2);
     padding: 1rem;
-    display: none;
+    display: flex;
     flex-direction: column;
     gap: 0.75rem;
     box-sizing: border-box;
@@ -353,8 +405,27 @@
     z-index: 100;
   }
 
-  .edit-form.visible {
+  .edit-form-placeholder {
     display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  .edit-form.visible .edit-form-placeholder {
+    display: none;
+  }
+
+  .edit-form:not(.visible) .edit-form-content {
+    display: none;
+  }
+
+  .edit-form.visible .edit-form-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
   }
 
   .edit-form h3 {
@@ -365,6 +436,7 @@
   }
 
   .edit-form input[type="text"],
+  .edit-form input[type="number"],
   .edit-form textarea {
     background: rgba(0,0,0,.3);
     border: 1px solid rgba(255,255,255,.1);
@@ -379,6 +451,7 @@
   }
 
   .edit-form input[type="text"]:focus,
+  .edit-form input[type="number"]:focus,
   .edit-form textarea:focus {
     border-color: var(--accent);
     background: rgba(0,0,0,.4);
@@ -422,6 +495,133 @@
 
   .edit-form button:active {
     opacity: 0.8;
+  }
+
+  /* Modal overlay */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.visible {
+    display: flex;
+  }
+
+  .modal {
+    background: var(--panel);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 12px;
+    padding: 1.5rem;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.6);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .modal h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .modal input[type="text"],
+  .modal input[type="number"],
+  .modal textarea {
+    background: rgba(0,0,0,.3);
+    border: 1px solid rgba(255,255,255,.1);
+    color: var(--text);
+    padding: 0.5rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+    font-family: inherit;
+  }
+
+  .modal input[type="text"]:focus,
+  .modal input[type="number"]:focus,
+  .modal textarea:focus {
+    border-color: var(--accent);
+    background: rgba(0,0,0,.4);
+  }
+
+  .modal textarea {
+    resize: none;
+    min-height: 60px;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+  }
+
+  .modal button {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: opacity 0.2s;
+  }
+
+  .modal button.save {
+    background: var(--accent);
+    color: var(--panel);
+  }
+
+  .modal button.cancel {
+    background: rgba(255,255,255,.1);
+    color: var(--text);
+  }
+
+  .modal button:hover {
+    opacity: 0.9;
+  }
+
+  .modal button:active {
+    opacity: 0.8;
+  }
+
+  /* Add button */
+  .add-item-button {
+    background: var(--accent);
+    color: var(--panel);
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: opacity 0.2s;
+    margin-top: 0.5rem;
+    width: 100%;
+  }
+
+  .add-item-button:hover {
+    opacity: 0.9;
+  }
+
+  .add-item-button:active {
+    opacity: 0.8;
+  }
+
+  /* Read-only qty cell */
+  .inventory-table .qty-cell.readonly {
+    text-align: center;
+    color: var(--text);
   }
 
   .box.selected {
@@ -535,17 +735,37 @@
 </div>
 
 <div class="right-tab">
+  <div class="right-tab-resize" id="right-tab-resize"></div>
   <h2 id="pane-title">Select an item</h2>
   <div id="pane-inventory">
     <div class="inventory-list empty">Click on any inventory box to view its contents.</div>
   </div>
   <div class="edit-form" id="edit-form">
-    <h3>Edit Item</h3>
-    <input type="text" id="edit-name" placeholder="Item name">
-    <textarea id="edit-description" placeholder="Description (optional)"></textarea>
-    <div class="edit-form-actions">
-      <button type="button" class="cancel" id="edit-cancel">Cancel</button>
-      <button type="button" class="save" id="edit-save">Save</button>
+    <div class="edit-form-resize" id="edit-form-resize"></div>
+    <div class="edit-form-placeholder">Select Item to Edit It</div>
+    <div class="edit-form-content">
+      <h3>Edit Item</h3>
+      <input type="text" id="edit-name" placeholder="Item name">
+      <input type="number" id="edit-qty" placeholder="Quantity" value="1" min="0">
+      <textarea id="edit-description" placeholder="Description (optional)"></textarea>
+      <div class="edit-form-actions">
+        <button type="button" class="cancel" id="edit-cancel">Cancel</button>
+        <button type="button" class="save" id="edit-save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Item Modal -->
+<div class="modal-overlay" id="add-modal-overlay">
+  <div class="modal" id="add-modal">
+    <h3>Add Item</h3>
+    <input type="text" id="add-name" placeholder="Item name">
+    <input type="number" id="add-qty" placeholder="Quantity" value="1" min="0">
+    <textarea id="add-description" placeholder="Description (optional)"></textarea>
+    <div class="modal-actions">
+      <button type="button" class="cancel" id="add-cancel">Cancel</button>
+      <button type="button" class="save" id="add-save">Add</button>
     </div>
   </div>
 </div>
@@ -563,9 +783,19 @@
   const paneInventory = document.getElementById('pane-inventory');
   const editForm = document.getElementById('edit-form');
   const editName = document.getElementById('edit-name');
+  const editQty = document.getElementById('edit-qty');
   const editDescription = document.getElementById('edit-description');
   const editSave = document.getElementById('edit-save');
   const editCancel = document.getElementById('edit-cancel');
+  const addModalOverlay = document.getElementById('add-modal-overlay');
+  const addName = document.getElementById('add-name');
+  const addQty = document.getElementById('add-qty');
+  const addDescription = document.getElementById('add-description');
+  const addSave = document.getElementById('add-save');
+  const addCancel = document.getElementById('add-cancel');
+  const rightTab = document.querySelector('.right-tab');
+  const rightTabResize = document.getElementById('right-tab-resize');
+  const editFormResize = document.getElementById('edit-form-resize');
 
   // --- Random robotics items ---------------------------------
   const pool = [
@@ -605,6 +835,8 @@
   const inventoryData = new Map();
   let currentEditingBox = null;
   let currentEditingIndex = null;
+  let currentAddingBox = null;
+  let lastSelectedIndex = null; // Track last selected index for shift-click
   let draggedItemData = null; // Store item being dragged from right pane
 
   // Assign random "contents" to every box
@@ -680,6 +912,20 @@
         selectedBox.classList.remove('selected');
       }
       
+      // Unselect any currently editing item
+      editForm.classList.remove('visible');
+      const tbody = document.getElementById('inventory-tbody');
+      if (tbody) {
+        tbody.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
+      }
+      currentEditingBox = null;
+      currentEditingIndex = null;
+      lastSelectedIndex = null;
+      
+      // Close add modal if open
+      addModalOverlay.classList.remove('visible');
+      currentAddingBox = null;
+      
       // Add selection to clicked box
       el.classList.add('selected');
       selectedBox = el;
@@ -741,19 +987,36 @@
         e.preventDefault();
         e.stopPropagation();
         
-        // Get the item being moved
         const sourceInventory = inventoryData.get(draggedItemData.sourceBox);
-        const item = sourceInventory[draggedItemData.sourceIndex];
         
-        // Remove from source box
-        sourceInventory.splice(draggedItemData.sourceIndex, 1);
-        saveInventory(draggedItemData.sourceBox);
-        
-        // Add to destination box
-        let destInventory = inventoryData.get(el) || [];
-        destInventory.push(item);
-        inventoryData.set(el, destInventory);
-        saveInventory(el);
+        if (draggedItemData.isMultiple && draggedItemData.items) {
+          // Multiple items selected - move all of them
+          // Remove items from source (in reverse order to maintain indices)
+          const sortedIndices = [...draggedItemData.sourceIndices].sort((a, b) => b - a);
+          sortedIndices.forEach(idx => {
+            sourceInventory.splice(idx, 1);
+          });
+          saveInventory(draggedItemData.sourceBox);
+          
+          // Add all items to destination box
+          let destInventory = inventoryData.get(el) || [];
+          destInventory.push(...draggedItemData.items);
+          inventoryData.set(el, destInventory);
+          saveInventory(el);
+        } else {
+          // Single item drag (original behavior)
+          const item = sourceInventory[draggedItemData.sourceIndex];
+          
+          // Remove from source box
+          sourceInventory.splice(draggedItemData.sourceIndex, 1);
+          saveInventory(draggedItemData.sourceBox);
+          
+          // Add to destination box
+          let destInventory = inventoryData.get(el) || [];
+          destInventory.push(item);
+          inventoryData.set(el, destInventory);
+          saveInventory(el);
+        }
         
         // Update the right pane if either box is selected
         if (selectedBox === draggedItemData.sourceBox || selectedBox === el) {
@@ -762,6 +1025,9 @@
           paneTitle.textContent = title;
           renderInventoryTable(inventory, selectedBox);
         }
+        
+        // Clear selections after successful move
+        lastSelectedIndex = null;
         
         // Reset drag state
         draggedItemData = null;
@@ -776,7 +1042,8 @@
   // --- Inventory Table Rendering ------------------------------
   function renderInventoryTable(inventory, boxElement) {
     if (!inventory || inventory.length === 0) {
-      paneInventory.innerHTML = '<div class="inventory-list empty">No inventory listed.</div>';
+      paneInventory.innerHTML = '<div class="inventory-list empty">No inventory listed.</div><button class="add-item-button" id="add-item-btn">Add Item</button>';
+      setupAddButton(boxElement);
       return;
     }
 
@@ -787,36 +1054,19 @@
     inventory.forEach((item, index) => {
       html += `<tr data-index="${index}" draggable="true">
         <td class="name-cell"><span>${escapeHtml(item.name)}</span></td>
-        <td class="qty-cell">
-          <div class="qty-input-wrapper">
-            <div class="qty-spinner">
-              <button type="button" class="qty-spinner-btn" data-action="increment">▲</button>
-              <button type="button" class="qty-spinner-btn" data-action="decrement">▼</button>
-            </div>
-            <input type="number" value="${item.qty}" data-field="qty" min="0">
-          </div>
-        </td>
+        <td class="qty-cell readonly">${escapeHtml(String(item.qty))}</td>
       </tr>`;
     });
     
     html += '</tbody></table>';
     html += '<div class="inventory-separator"></div>';
-    html += '<div class="add-row">';
-    html += '<input type="text" name="name" placeholder="Item name">';
-    html += '<div class="qty-input-wrapper">';
-    html += '<input type="number" name="qty" placeholder="Qty" value="1" min="0">';
-    html += '</div>';
-    html += '<div class="qty-spinner">';
-    html += '<button type="button" class="qty-spinner-btn" data-action="increment">▲</button>';
-    html += '<button type="button" class="qty-spinner-btn" data-action="decrement">▼</button>';
-    html += '</div>';
-    html += '<button id="add-item-btn">+</button>';
-    html += '</div>';
+    html += '<button class="add-item-button" id="add-item-btn">Add Item</button>';
     
     paneInventory.innerHTML = html;
     
     // Setup event listeners
     setupInventoryTable(boxElement);
+    setupAddButton(boxElement);
   }
 
   function escapeHtml(text) {
@@ -829,19 +1079,6 @@
     const tbody = document.getElementById('inventory-tbody');
     if (!tbody) return;
 
-    // Quantity input change handlers
-    tbody.querySelectorAll('input[data-field="qty"]').forEach(input => {
-      input.addEventListener('change', () => {
-        const row = input.closest('tr');
-        const index = parseInt(row.dataset.index);
-        const inventory = inventoryData.get(boxElement);
-        if (inventory[index]) {
-          inventory[index].qty = parseInt(input.value) || 0;
-          saveInventory(boxElement);
-        }
-      });
-    });
-
     // Click handlers for name cells to open edit form
     tbody.querySelectorAll('.name-cell').forEach(cell => {
       cell.addEventListener('click', (e) => {
@@ -851,45 +1088,56 @@
         const inventory = inventoryData.get(boxElement);
         
         if (inventory[index]) {
-          // Remove previous selection
-          tbody.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
-          row.classList.add('selected');
-          
-          // Store editing context
-          currentEditingBox = boxElement;
-          currentEditingIndex = index;
-          
-          // Populate edit form
-          editName.value = inventory[index].name || '';
-          editDescription.value = inventory[index].description || '';
-          
-          // Show edit form
-          editForm.classList.add('visible');
-          editName.focus();
-        }
-      });
-    });
-
-    // Custom spinner button handlers for table rows
-    tbody.querySelectorAll('.qty-spinner-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const row = btn.closest('tr');
-        const index = parseInt(row.dataset.index);
-        const input = row.querySelector('input[data-field="qty"]');
-        const inventory = inventoryData.get(boxElement);
-        
-        if (inventory[index] && input) {
-          let currentValue = parseInt(input.value) || 0;
-          if (btn.dataset.action === 'increment') {
-            currentValue++;
-          } else if (btn.dataset.action === 'decrement' && currentValue > 0) {
-            currentValue--;
+          if (e.shiftKey && lastSelectedIndex !== null) {
+            // Shift-click: select range from last selected to current
+            // Clear previous selections first
+            tbody.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
+            
+            const start = Math.min(lastSelectedIndex, index);
+            const end = Math.max(lastSelectedIndex, index);
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            
+            // Select all rows in range
+            for (let i = start; i <= end; i++) {
+              if (rows[i]) {
+                rows[i].classList.add('selected');
+              }
+            }
+            
+            // Update last selected index
+            lastSelectedIndex = index;
+            
+            // Store editing context for the last clicked item
+            currentEditingBox = boxElement;
+            currentEditingIndex = index;
+            
+            // Populate edit form with the last clicked item
+            editName.value = inventory[index].name || '';
+            editQty.value = inventory[index].qty || 1;
+            editDescription.value = inventory[index].description || '';
+            
+            // Show edit form
+            editForm.classList.add('visible');
+            editName.focus();
+          } else {
+            // Normal click: single selection
+            tbody.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
+            row.classList.add('selected');
+            
+            // Store editing context
+            currentEditingBox = boxElement;
+            currentEditingIndex = index;
+            lastSelectedIndex = index;
+            
+            // Populate edit form
+            editName.value = inventory[index].name || '';
+            editQty.value = inventory[index].qty || 1;
+            editDescription.value = inventory[index].description || '';
+            
+            // Show edit form
+            editForm.classList.add('visible');
+            editName.focus();
           }
-          input.value = currentValue;
-          inventory[index].qty = currentValue;
-          saveInventory(boxElement);
         }
       });
     });
@@ -900,30 +1148,59 @@
 
     tbody.querySelectorAll('tr').forEach((row, index) => {
       row.addEventListener('dragstart', (e) => {
-        // Don't start drag if clicking on name cell
+        // Don't start drag if clicking on name cell (which opens edit form)
         if (e.target.closest('.name-cell')) {
           e.preventDefault();
           return;
         }
-        draggedRow = row;
-        draggedIndex = index;
-        row.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/html', row.innerHTML);
         
-        // Store the item data for cross-pane dragging
+        // Check if multiple items are selected
+        const selectedRows = tbody.querySelectorAll('tr.selected');
         const inventory = inventoryData.get(boxElement);
-        if (inventory[index]) {
+        
+        if (selectedRows.length > 1) {
+          // Multiple items selected - drag all of them
+          const selectedIndices = Array.from(selectedRows).map(r => parseInt(r.dataset.index)).sort((a, b) => a - b);
+          const selectedItems = selectedIndices.map(idx => ({ ...inventory[idx] }));
+          
+          draggedRow = row;
+          draggedIndex = index;
+          
+          // Mark all selected rows as dragging
+          selectedRows.forEach(r => r.classList.add('dragging'));
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/html', row.innerHTML);
+          
+          // Store all selected items for cross-pane dragging
           draggedItemData = {
             sourceBox: boxElement,
-            sourceIndex: index,
-            item: { ...inventory[index] }
+            sourceIndices: selectedIndices,
+            items: selectedItems,
+            isMultiple: true
           };
+        } else {
+          // Single item drag
+          draggedRow = row;
+          draggedIndex = index;
+          row.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/html', row.innerHTML);
+          
+          // Store the item data for cross-pane dragging
+          if (inventory[index]) {
+            draggedItemData = {
+              sourceBox: boxElement,
+              sourceIndex: index,
+              item: { ...inventory[index] },
+              isMultiple: false
+            };
+          }
         }
       });
 
       row.addEventListener('dragend', (e) => {
-        row.classList.remove('dragging');
+        // Remove dragging class from all rows
+        tbody.querySelectorAll('tr').forEach(r => r.classList.remove('dragging'));
         tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
         
         // Clear drag-over-box from all boxes
@@ -974,59 +1251,26 @@
       });
     });
 
-    // Add new item button
+    // No more add-row handlers needed - using modal instead
+  }
+
+  function setupAddButton(boxElement) {
     const addBtn = document.getElementById('add-item-btn');
-    const nameInput = document.querySelector('input[name="name"]');
-    const qtyInput = document.querySelector('input[name="qty"]');
+    if (!addBtn) return;
     
     addBtn.addEventListener('click', () => {
-      const name = nameInput.value.trim();
-      const qty = parseInt(qtyInput.value) || 0;
+      // Reset modal fields
+      addName.value = '';
+      addQty.value = '1';
+      addDescription.value = '';
       
-      if (name) {
-        const inventory = inventoryData.get(boxElement) || [];
-        inventory.push({ name, qty });
-        inventoryData.set(boxElement, inventory);
-        renderInventoryTable(inventory, boxElement);
-        nameInput.value = '';
-        qtyInput.value = '1';
-      }
+      // Store which box we're adding to
+      currentAddingBox = boxElement;
+      
+      // Show modal
+      addModalOverlay.classList.add('visible');
+      addName.focus();
     });
-
-    // Custom spinner button handlers for add-row
-    const addRowSpinners = document.querySelectorAll('.add-row .qty-spinner-btn');
-    addRowSpinners.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const qtyInput = document.querySelector('.add-row input[name="qty"]');
-        if (qtyInput) {
-          let currentValue = parseInt(qtyInput.value) || 0;
-          if (btn.dataset.action === 'increment') {
-            currentValue++;
-          } else if (btn.dataset.action === 'decrement' && currentValue > 0) {
-            currentValue--;
-          }
-          qtyInput.value = currentValue;
-        }
-      });
-    });
-
-    // Allow Enter key to add item
-    if (nameInput) {
-      nameInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-          addBtn.click();
-        }
-      });
-    }
-    if (qtyInput) {
-      qtyInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-          addBtn.click();
-        }
-      });
-    }
   }
 
   function getDragAfterElement(container, y) {
@@ -1059,6 +1303,7 @@
         const newName = editName.value.trim();
         if (newName) {
           inventory[currentEditingIndex].name = newName;
+          inventory[currentEditingIndex].qty = parseInt(editQty.value) || 1;
           inventory[currentEditingIndex].description = editDescription.value.trim();
           saveInventory(currentEditingBox);
           
@@ -1069,6 +1314,7 @@
           editForm.classList.remove('visible');
           currentEditingBox = null;
           currentEditingIndex = null;
+          lastSelectedIndex = null;
         }
       }
     }
@@ -1082,6 +1328,101 @@
     }
     currentEditingBox = null;
     currentEditingIndex = null;
+    lastSelectedIndex = null;
+  });
+
+  // Add modal handlers
+  addSave.addEventListener('click', () => {
+    if (currentAddingBox !== null) {
+      const name = addName.value.trim();
+      const qty = parseInt(addQty.value) || 1;
+      const description = addDescription.value.trim();
+      
+      if (name) {
+        const inventory = inventoryData.get(currentAddingBox) || [];
+        inventory.push({ name, qty, description });
+        inventoryData.set(currentAddingBox, inventory);
+        saveInventory(currentAddingBox);
+        
+        // Re-render the table
+        renderInventoryTable(inventory, currentAddingBox);
+        
+        // Hide modal
+        addModalOverlay.classList.remove('visible');
+        currentAddingBox = null;
+      }
+    }
+  });
+
+  addCancel.addEventListener('click', () => {
+    addModalOverlay.classList.remove('visible');
+    currentAddingBox = null;
+  });
+
+  // Close modal when clicking overlay
+  addModalOverlay.addEventListener('click', (e) => {
+    if (e.target === addModalOverlay) {
+      addModalOverlay.classList.remove('visible');
+      currentAddingBox = null;
+    }
+  });
+
+  // --- Resize handlers ----------------------------------------
+  // Right tab resize (left/right)
+  let isResizingRightTab = false;
+  let startX = 0;
+  let startWidth = 0;
+
+  rightTabResize.addEventListener('mousedown', (e) => {
+    isResizingRightTab = true;
+    startX = e.clientX;
+    startWidth = parseInt(getComputedStyle(rightTab).width);
+    rightTabResize.classList.add('dragging');
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (isResizingRightTab) {
+      const diff = startX - e.clientX; // Inverted because dragging left increases width
+      const newWidth = Math.max(200, Math.min(800, startWidth + diff));
+      document.body.style.setProperty('--right-tab-width', `${newWidth}px`);
+      rightTab.style.setProperty('--right-tab-width', `${newWidth}px`);
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isResizingRightTab) {
+      isResizingRightTab = false;
+      rightTabResize.classList.remove('dragging');
+    }
+  });
+
+  // Edit form resize (up/down)
+  let isResizingEditForm = false;
+  let startY = 0;
+  let startHeight = 0;
+
+  editFormResize.addEventListener('mousedown', (e) => {
+    isResizingEditForm = true;
+    startY = e.clientY;
+    startHeight = parseInt(getComputedStyle(rightTab).getPropertyValue('--edit-form-height')) || 400;
+    editFormResize.classList.add('dragging');
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (isResizingEditForm) {
+      const diff = startY - e.clientY; // Inverted because dragging up increases height
+      const newHeight = Math.max(200, Math.min(800, startHeight + diff));
+      rightTab.style.setProperty('--edit-form-height', `${newHeight}px`);
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isResizingEditForm) {
+      isResizingEditForm = false;
+      editFormResize.classList.remove('dragging');
+    }
   });
 
   // Close form on Escape key
@@ -1091,11 +1432,26 @@
     }
   });
 
+  // Close modal on Escape key
+  addModalOverlay.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      addCancel.click();
+    }
+  });
+
   // Prevent form submission on Enter in name field (only save button should submit)
   editName.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       editSave.click();
+    }
+  });
+
+  // Allow Enter key in add modal name field
+  addName.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addSave.click();
     }
   });
 
