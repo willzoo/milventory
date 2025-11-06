@@ -158,6 +158,7 @@
   .qty-spinner {
     position: absolute;
     left: 2px;
+    top: 2px;
     display: flex;
     flex-direction: column;
     height: calc(100% - 4px);
@@ -197,6 +198,48 @@
 
   .qty-spinner-btn:active {
     background: rgba(155, 183, 255, 0.3);
+  }
+
+  /* Add-row specific spinner styles */
+  .add-row .qty-spinner {
+    position: relative;
+    left: 0;
+    top: 0;
+    height: auto;
+    width: auto;
+    flex-direction: column;
+    gap: 0;
+    pointer-events: all;
+  }
+
+  .add-row .qty-spinner-btn {
+    width: 20px;
+    height: 12px;
+    border-radius: 2px;
+    font-size: 10px;
+    flex: none;
+    padding: 0;
+    margin: 0;
+    background: var(--accent);
+    color: var(--panel);
+  }
+
+  .add-row .qty-spinner-btn:first-child {
+    border-radius: 2px 2px 0 0;
+    border-bottom: 1px solid rgba(0,0,0,.2);
+  }
+
+  .add-row .qty-spinner-btn:last-child {
+    border-radius: 0 0 2px 2px;
+    border-bottom: none;
+  }
+
+  .add-row .qty-spinner-btn:hover {
+    opacity: 0.9;
+  }
+
+  .add-row .qty-spinner-btn:active {
+    opacity: 0.8;
   }
 
   .qty-cell .qty-input-wrapper {
@@ -250,15 +293,17 @@
   .add-row input[name="qty"] {
     width: 70px;
     flex: none;
-    padding-left: 24px;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
   }
 
   .add-row .qty-input-wrapper {
     width: 70px;
     flex: none;
+    position: relative;
   }
 
-  .add-row button {
+  .add-row #add-item-btn {
     background: var(--accent);
     color: var(--panel);
     border: none;
@@ -271,12 +316,17 @@
     flex-shrink: 0;
   }
 
-  .add-row button:hover {
+  .add-row #add-item-btn:hover {
     opacity: 0.9;
   }
 
-  .add-row button:active {
+  .add-row #add-item-btn:active {
     opacity: 0.8;
+  }
+
+  .add-row .qty-spinner-btn {
+    padding: 0;
+    margin: 0;
   }
 
   .right-tab .inventory-list.empty {
@@ -665,11 +715,11 @@
     html += '<div class="add-row">';
     html += '<input type="text" name="name" placeholder="Item name">';
     html += '<div class="qty-input-wrapper">';
+    html += '<input type="number" name="qty" placeholder="Qty" value="1" min="0">';
+    html += '</div>';
     html += '<div class="qty-spinner">';
     html += '<button type="button" class="qty-spinner-btn" data-action="increment">▲</button>';
     html += '<button type="button" class="qty-spinner-btn" data-action="decrement">▼</button>';
-    html += '</div>';
-    html += '<input type="number" name="qty" placeholder="Qty" value="1" min="0">';
     html += '</div>';
     html += '<button id="add-item-btn">+</button>';
     html += '</div>';
