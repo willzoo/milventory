@@ -1,6 +1,9 @@
 import React from 'react';
+import { useInventory } from '../context/InventoryContext';
 
-const Tooltip = ({ tooltip, wrapRef }) => {
+const Tooltip = () => {
+  const { tooltip, wrapRef } = useInventory();
+  
   if (!tooltip.visible || !wrapRef.current) return null;
 
   const style = {

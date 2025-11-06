@@ -1,6 +1,9 @@
 import React, { forwardRef } from 'react';
+import { useInventory } from '../context/InventoryContext';
 
-const MapComponent = forwardRef(({ worldRef, boxes, selectedBox, currentDragOverBox, onBoxClick, onBoxHover, onBoxHoverLeave, onDragStart, onDrop, setCurrentDragOverBox }, ref) => {
+const MapComponent = forwardRef((props, ref) => {
+  const { worldRef, inventoryData, selectedBox, currentDragOverBox, handleBoxClick, handleBoxHover, handleBoxHoverLeave, handleDrop, setCurrentDragOverBox } = useInventory();
+
   const handleBoxMouseEnter = (e, boxTitle) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const wrap = e.currentTarget.closest('.wrap');
@@ -8,7 +11,7 @@ const MapComponent = forwardRef(({ worldRef, boxes, selectedBox, currentDragOver
       const wrapRect = wrap.getBoundingClientRect();
       const x = rect.left + rect.width / 2 - wrapRect.left;
       const y = rect.top + rect.height / 2 - wrapRect.top;
-      onBoxHover(boxTitle, x, y);
+      handleBoxHover(boxTitle, x, y);
     }
   };
 
@@ -44,12 +47,14 @@ const MapComponent = forwardRef(({ worldRef, boxes, selectedBox, currentDragOver
     }, 0);
   };
 
-  const handleDrop = (e, boxTitle) => {
+  const handleDropBox = (e, boxTitle) => {
     e.preventDefault();
     e.stopPropagation();
-    onDrop(boxTitle);
+    handleDrop(boxTitle);
     setCurrentDragOverBox(null);
   };
+
+  const boxes = Array.from(inventoryData.values());
 
   return (
     <svg ref={ref} className="map" viewBox="0 0 1600 1800" aria-label="Room map">
@@ -68,15 +73,15 @@ const MapComponent = forwardRef(({ worldRef, boxes, selectedBox, currentDragOver
             data-title={box.title}
             onClick={(e) => {
               e.stopPropagation();
-              onBoxClick(box.title);
+              handleBoxClick(box.title);
             }}
             onMouseEnter={(e) => handleBoxMouseEnter(e, box.title)}
             onMouseMove={(e) => handleBoxMouseEnter(e, box.title)}
-            onMouseLeave={onBoxHoverLeave}
+            onMouseLeave={handleBoxHoverLeave}
             onDragEnter={(e) => handleDragEnter(e, box.title)}
             onDragOver={(e) => handleDragOver(e, box.title)}
             onDragLeave={(e) => handleDragLeave(e, box.title)}
-            onDrop={(e) => handleDrop(e, box.title)}
+            onDrop={(e) => handleDropBox(e, box.title)}
           />
         ))}
       </g>

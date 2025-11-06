@@ -1,19 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useInventory } from '../context/InventoryContext';
 
-const EditForm = ({
-  currentEditingBox,
-  currentEditingIndex,
-  inventoryData,
-  setCurrentEditingBox,
-  setCurrentEditingIndex,
-  setLastSelectedIndex,
-  updateInventory,
-  editFormHeight,
-  setEditFormHeight,
-  editFormResizeRef,
-  isResizingEditForm,
-  setIsResizingEditForm
-}) => {
+const EditForm = () => {
+  const { currentEditingBox, currentEditingIndex, inventoryData, setCurrentEditingBox, setCurrentEditingIndex, setLastSelectedIndex, updateInventory, editFormHeight, setEditFormHeight } = useInventory();
+  
   const boxData = currentEditingBox ? inventoryData.get(currentEditingBox) : null;
   const item = boxData && currentEditingIndex !== null ? boxData.inventory[currentEditingIndex] : null;
   
@@ -21,7 +11,9 @@ const EditForm = ({
   const [qty, setQty] = useState(1);
   const [description, setDescription] = useState('');
   const [image, setImage] = useState(null);
+  const [isResizingEditForm, setIsResizingEditForm] = useState(false);
   const nameInputRef = useRef(null);
+  const editFormResizeRef = useRef(null);
 
   useEffect(() => {
     if (item) {
@@ -101,7 +93,7 @@ const EditForm = ({
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isResizingEditForm, editFormHeight, setEditFormHeight, editFormResizeRef]);
+  }, [isResizingEditForm, editFormHeight, setEditFormHeight]);
 
   const isVisible = currentEditingBox !== null && currentEditingIndex !== null;
 

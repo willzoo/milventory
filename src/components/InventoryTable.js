@@ -1,20 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useInventory } from '../context/InventoryContext';
 import { escapeHtml } from '../utils';
 
-const InventoryTable = ({
-  inventory,
-  boxTitle,
-  currentEditingBox,
-  currentEditingIndex,
-  lastSelectedIndex,
-  setCurrentEditingBox,
-  setCurrentEditingIndex,
-  setLastSelectedIndex,
-  setCurrentAddingBox,
-  updateInventory,
-  handleDragStart,
-  handleDrop
-}) => {
+const InventoryTable = () => {
+  const { selectedBox, inventoryData, lastSelectedIndex, setCurrentEditingBox, setCurrentEditingIndex, setLastSelectedIndex, setCurrentAddingBox, updateInventory, handleDragStart } = useInventory();
+  
+  const boxData = selectedBox ? inventoryData.get(selectedBox) : null;
+  const inventory = boxData ? boxData.inventory : [];
+  const boxTitle = selectedBox;
+
   const [selectedIndices, setSelectedIndices] = useState(new Set());
   const [draggedRow, setDraggedRow] = useState(null);
   const [draggedIndex, setDraggedIndex] = useState(null);
@@ -89,7 +83,7 @@ const InventoryTable = ({
     });
     setDraggedRow(null);
     setDraggedIndex(null);
-    // Note: draggedItemData is cleared in App.js when drop happens
+    // Note: draggedItemData is cleared in context when drop happens
   };
 
   const handleDragOver = (e) => {

@@ -1,41 +1,16 @@
 import React, { useState } from 'react';
+import { useInventory } from '../context/InventoryContext';
 import EditForm from './EditForm';
 import InventoryTable from './InventoryTable';
 
-const RightPanel = ({
-  selectedBox,
-  inventoryData,
-  currentEditingBox,
-  currentEditingIndex,
-  lastSelectedIndex,
-  setCurrentEditingBox,
-  setCurrentEditingIndex,
-  setLastSelectedIndex,
-  setCurrentAddingBox,
-  updateInventory,
-  handleDragStart,
-  handleDrop,
-  rightTabWidth,
-  setRightTabWidth,
-  editFormHeight,
-  setEditFormHeight
-}) => {
+const RightPanel = () => {
+  const { selectedBox, rightTabWidth, setRightTabWidth } = useInventory();
   const [isResizingRightTab, setIsResizingRightTab] = useState(false);
-  const [isResizingEditForm, setIsResizingEditForm] = useState(false);
   const rightTabRef = React.useRef(null);
   const rightTabResizeRef = React.useRef(null);
-  const editFormResizeRef = React.useRef(null);
-
-  const boxData = selectedBox ? inventoryData.get(selectedBox) : null;
-  const inventory = boxData ? boxData.inventory : [];
 
   const handleRightTabResizeStart = (e) => {
     setIsResizingRightTab(true);
-    e.preventDefault();
-  };
-
-  const handleEditFormResizeStart = (e) => {
-    setIsResizingEditForm(true);
     e.preventDefault();
   };
 
@@ -47,23 +22,13 @@ const RightPanel = ({
         const newWidth = Math.max(200, Math.min(800, rightTabWidth + diff));
         setRightTabWidth(newWidth);
       }
-      if (isResizingEditForm) {
-        const startY = editFormResizeRef.current?.getBoundingClientRect().top || 0;
-        const diff = startY - e.clientY;
-        // Calculate max height as 80% of right pane height
-        const rightPaneHeight = rightTabRef.current?.clientHeight || window.innerHeight;
-        const maxHeight = rightPaneHeight * 0.8;
-        const newHeight = Math.max(250, Math.min(maxHeight, editFormHeight + diff));
-        setEditFormHeight(newHeight);
-      }
     };
 
     const handleMouseUp = () => {
       setIsResizingRightTab(false);
-      setIsResizingEditForm(false);
     };
 
-    if (isResizingRightTab || isResizingEditForm) {
+    if (isResizingRightTab) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
       return () => {
@@ -71,7 +36,7 @@ const RightPanel = ({
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isResizingRightTab, isResizingEditForm, rightTabWidth, editFormHeight]);
+  }, [isResizingRightTab, rightTabWidth, setRightTabWidth]);
 
   return (
     <div className="right-tab" ref={rightTabRef}>
@@ -83,38 +48,12 @@ const RightPanel = ({
       <h2>{selectedBox || 'Select an item'}</h2>
       <div className="pane-inventory">
         {selectedBox ? (
-          <InventoryTable
-            inventory={inventory}
-            boxTitle={selectedBox}
-            currentEditingBox={currentEditingBox}
-            currentEditingIndex={currentEditingIndex}
-            lastSelectedIndex={lastSelectedIndex}
-            setCurrentEditingBox={setCurrentEditingBox}
-            setCurrentEditingIndex={setCurrentEditingIndex}
-            setLastSelectedIndex={setLastSelectedIndex}
-            setCurrentAddingBox={setCurrentAddingBox}
-            updateInventory={updateInventory}
-            handleDragStart={handleDragStart}
-            handleDrop={handleDrop}
-          />
+          <InventoryTable />
         ) : (
           <div className="inventory-list empty">Click on any inventory box to view its contents.</div>
         )}
       </div>
-      <EditForm
-        currentEditingBox={currentEditingBox}
-        currentEditingIndex={currentEditingIndex}
-        inventoryData={inventoryData}
-        setCurrentEditingBox={setCurrentEditingBox}
-        setCurrentEditingIndex={setCurrentEditingIndex}
-        setLastSelectedIndex={setLastSelectedIndex}
-        updateInventory={updateInventory}
-        editFormHeight={editFormHeight}
-        setEditFormHeight={setEditFormHeight}
-        editFormResizeRef={editFormResizeRef}
-        isResizingEditForm={isResizingEditForm}
-        setIsResizingEditForm={setIsResizingEditForm}
-      />
+      <EditForm />
     </div>
   );
 };

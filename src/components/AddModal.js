@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useInventory } from '../context/InventoryContext';
 
-const AddModal = ({
-  currentAddingBox,
-  setCurrentAddingBox,
-  inventoryData,
-  updateInventory
-}) => {
+const AddModal = () => {
+  const { currentAddingBox, setCurrentAddingBox, inventoryData, updateInventory } = useInventory();
+  
   const [name, setName] = useState('');
   const [qty, setQty] = useState(1);
   const [description, setDescription] = useState('');
