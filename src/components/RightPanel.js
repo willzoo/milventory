@@ -50,7 +50,10 @@ const RightPanel = ({
       if (isResizingEditForm) {
         const startY = editFormResizeRef.current?.getBoundingClientRect().top || 0;
         const diff = startY - e.clientY;
-        const newHeight = Math.max(250, Math.min(800, editFormHeight + diff));
+        // Calculate max height as 80% of right pane height
+        const rightPaneHeight = rightTabRef.current?.clientHeight || window.innerHeight;
+        const maxHeight = rightPaneHeight * 0.8;
+        const newHeight = Math.max(250, Math.min(maxHeight, editFormHeight + diff));
         setEditFormHeight(newHeight);
       }
     };
