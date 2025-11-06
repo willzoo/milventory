@@ -427,7 +427,14 @@
   .box.selected {
     filter: brightness(1.15);
     stroke: var(--accent);
-    stroke-width: 5;
+    stroke-width: 3;
+  }
+
+  .box.drag-over-box {
+    filter: brightness(1.2);
+    stroke: var(--accent);
+    stroke-width: 3;
+    stroke-dasharray: 8 4;
   }
 
   svg#map { width: 100%; height: 100%; display: block; touch-action: none; user-select: none; }
@@ -439,7 +446,7 @@
 
   .box {
     vector-effect: non-scaling-stroke;
-    stroke: var(--stroke); stroke-width: 4; rx: 10; ry: 10; cursor: pointer;
+    stroke: var(--stroke); stroke-width: 2; rx: 10; ry: 10; cursor: pointer;
   }
   .box:hover { filter: brightness(1.06); }
 
@@ -495,11 +502,11 @@
 
       <!-- drawers (right) -->
       <g id="drawers-right" fill="var(--drawer)">
-        <rect class="box" data-title="Drawer R1" x="1350" y="320" width="170" height="170"/>
-        <rect class="box" data-title="Drawer R2" x="1350" y="520" width="170" height="170"/>
-        <rect class="box" data-title="Drawer R3" x="1350" y="720" width="170" height="170"/>
-        <rect class="box" data-title="Drawer R4" x="1350" y="920" width="170" height="170"/>
-        <rect class="box" data-title="Drawer R5" x="1350" y="1120" width="170" height="170"/>
+        <rect class="box" data-title="Drawer R1" x="1340" y="320" width="170" height="170"/>
+        <rect class="box" data-title="Drawer R2" x="1340" y="520" width="170" height="170"/>
+        <rect class="box" data-title="Drawer R3" x="1340" y="720" width="170" height="170"/>
+        <rect class="box" data-title="Drawer R4" x="1340" y="920" width="170" height="170"/>
+        <rect class="box" data-title="Drawer R5" x="1340" y="1120" width="170" height="170"/>
       </g>
 
       <!-- tables (left) -->
@@ -598,6 +605,7 @@
   const inventoryData = new Map();
   let currentEditingBox = null;
   let currentEditingIndex = null;
+  let draggedItemData = null; // Store item being dragged from right pane
 
   // Assign random "contents" to every box
   document.querySelectorAll('.box').forEach((el) => {
@@ -643,6 +651,7 @@
   // --- Hover tooltips (name only) ----------------------------
   let currentTarget = null;
   let selectedBox = null;
+  let currentDragOverBox = null; // Track which box is currently being dragged over
   
   svg.querySelectorAll('.box').forEach(el => {
     el.addEventListener('mouseenter', () => {
@@ -681,6 +690,86 @@
       
       paneTitle.textContent = title;
       renderInventoryTable(inventory, el);
+    });
+
+    // --- Drag and drop handlers for moving items from right pane to boxes ----
+    el.addEventListener('dragenter', (e) => {
+      if (draggedItemData) {
+        e.preventDefault();
+        // Remove drag-over from previous box
+        if (currentDragOverBox && currentDragOverBox !== el) {
+          currentDragOverBox.classList.remove('drag-over-box');
+        }
+        currentDragOverBox = el;
+        el.classList.add('drag-over-box');
+      }
+    });
+
+    el.addEventListener('dragover', (e) => {
+      if (draggedItemData) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        // Remove drag-over from previous box
+        if (currentDragOverBox && currentDragOverBox !== el) {
+          currentDragOverBox.classList.remove('drag-over-box');
+        }
+        currentDragOverBox = el;
+        el.classList.add('drag-over-box');
+      }
+    });
+
+    el.addEventListener('dragleave', (e) => {
+      if (draggedItemData) {
+        // Use a timeout to check if we're actually leaving (not just moving to a child)
+        setTimeout(() => {
+          const rect = el.getBoundingClientRect();
+          const x = e.clientX;
+          const y = e.clientY;
+          // Only remove if mouse is actually outside the box bounds
+          if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+            el.classList.remove('drag-over-box');
+            if (currentDragOverBox === el) {
+              currentDragOverBox = null;
+            }
+          }
+        }, 0);
+      }
+    });
+
+    el.addEventListener('drop', (e) => {
+      if (draggedItemData && draggedItemData.sourceBox !== el) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Get the item being moved
+        const sourceInventory = inventoryData.get(draggedItemData.sourceBox);
+        const item = sourceInventory[draggedItemData.sourceIndex];
+        
+        // Remove from source box
+        sourceInventory.splice(draggedItemData.sourceIndex, 1);
+        saveInventory(draggedItemData.sourceBox);
+        
+        // Add to destination box
+        let destInventory = inventoryData.get(el) || [];
+        destInventory.push(item);
+        inventoryData.set(el, destInventory);
+        saveInventory(el);
+        
+        // Update the right pane if either box is selected
+        if (selectedBox === draggedItemData.sourceBox || selectedBox === el) {
+          const title = selectedBox.dataset.title || 'Item';
+          const inventory = inventoryData.get(selectedBox) || [];
+          paneTitle.textContent = title;
+          renderInventoryTable(inventory, selectedBox);
+        }
+        
+        // Reset drag state
+        draggedItemData = null;
+        currentDragOverBox = null;
+        el.classList.remove('drag-over-box');
+        // Clear from all boxes
+        svg.querySelectorAll('.box').forEach(box => box.classList.remove('drag-over-box'));
+      }
     });
   });
 
@@ -821,11 +910,30 @@
         row.classList.add('dragging');
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/html', row.innerHTML);
+        
+        // Store the item data for cross-pane dragging
+        const inventory = inventoryData.get(boxElement);
+        if (inventory[index]) {
+          draggedItemData = {
+            sourceBox: boxElement,
+            sourceIndex: index,
+            item: { ...inventory[index] }
+          };
+        }
       });
 
-      row.addEventListener('dragend', () => {
+      row.addEventListener('dragend', (e) => {
         row.classList.remove('dragging');
         tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+        
+        // Clear drag-over-box from all boxes
+        svg.querySelectorAll('.box').forEach(box => box.classList.remove('drag-over-box'));
+        currentDragOverBox = null;
+        
+        // Reset dragged item data if drop didn't happen on a box
+        if (draggedItemData && e.dataTransfer.dropEffect === 'none') {
+          draggedItemData = null;
+        }
       });
 
       row.addEventListener('dragover', (e) => {
@@ -841,6 +949,9 @@
       row.addEventListener('drop', (e) => {
         e.preventDefault();
         if (draggedRow !== row) {
+          // Clear cross-pane drag data since we're dropping within the table
+          draggedItemData = null;
+          
           const inventory = inventoryData.get(boxElement);
           const items = [...inventory];
           const draggedItem = items[draggedIndex];
