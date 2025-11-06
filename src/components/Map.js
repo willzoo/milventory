@@ -28,11 +28,15 @@ const MapComponent = forwardRef(({ worldRef, boxes, selectedBox, currentDragOver
   };
 
   const handleDragLeave = (e, boxTitle) => {
+    const target = e.currentTarget;
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+    
     setTimeout(() => {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const x = e.clientX;
-      const y = e.clientY;
-      if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      if (!target) return;
+      const rect = target.getBoundingClientRect();
+      // Only remove if mouse is actually outside the box bounds
+      if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) {
         if (currentDragOverBox === boxTitle) {
           setCurrentDragOverBox(null);
         }

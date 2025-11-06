@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { escapeHtml } from '../utils';
 
 const InventoryTable = ({
@@ -18,14 +18,15 @@ const InventoryTable = ({
   const [selectedIndices, setSelectedIndices] = useState(new Set());
   const [draggedRow, setDraggedRow] = useState(null);
   const [draggedIndex, setDraggedIndex] = useState(null);
+  const isInternalUpdateRef = useRef(false);
 
   useEffect(() => {
-    // Sync selectedIndices when lastSelectedIndex changes externally
-    if (lastSelectedIndex !== null) {
-      setSelectedIndices(new Set([lastSelectedIndex]));
-    } else {
+    // Only sync selectedIndices when lastSelectedIndex is cleared (null)
+    // handleNameClick manages selectedIndices for all other cases
+    if (lastSelectedIndex === null && !isInternalUpdateRef.current) {
       setSelectedIndices(new Set());
     }
+    isInternalUpdateRef.current = false;
   }, [lastSelectedIndex]);
 
   const handleNameClick = (e, index) => {
@@ -38,11 +39,13 @@ const InventoryTable = ({
       for (let i = start; i <= end; i++) {
         newSelected.add(i);
       }
+      isInternalUpdateRef.current = true;
       setSelectedIndices(newSelected);
       setLastSelectedIndex(index);
       setCurrentEditingBox(boxTitle);
       setCurrentEditingIndex(index);
     } else {
+      isInternalUpdateRef.current = true;
       setSelectedIndices(new Set([index]));
       setCurrentEditingBox(boxTitle);
       setCurrentEditingIndex(index);

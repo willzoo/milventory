@@ -154,14 +154,15 @@ function App() {
     updateInventory(draggedItemData.sourceBox, newSourceInventory);
     updateInventory(targetBoxTitle, newTargetInventory);
 
-    if (selectedBox === draggedItemData.sourceBox || selectedBox === targetBoxTitle) {
-      // Keep selection
-    }
+    // Auto-select the target box after successful drop
+    setSelectedBox(targetBoxTitle);
+    setCurrentEditingBox(null);
+    setCurrentEditingIndex(null);
+    setLastSelectedIndex(null);
 
     setDraggedItemData(null);
     setCurrentDragOverBox(null);
-    setLastSelectedIndex(null);
-  }, [draggedItemData, inventoryData, selectedBox, updateInventory]);
+  }, [draggedItemData, inventoryData, updateInventory]);
 
   useEffect(() => {
     document.body.style.setProperty('--right-tab-width', `${rightTabWidth}px`);
