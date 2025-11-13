@@ -1,8 +1,57 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import * as d3 from 'd3';
-import { POOL, WORKBENCH_ITEMS, sample } from '../utils';
 
 const InventoryContext = createContext(null);
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
+// Map location types to fill colors
+const getFillColor = (type) => {
+  const typeLower = (type || '').toLowerCase();
+  if (typeLower.includes('workbench')) return '#e7ebf3';
+  if (typeLower.includes('file') || typeLower.includes('cabinet')) return 'var(--files)';
+  if (typeLower.includes('drawer')) return 'var(--drawer)';
+  if (typeLower.includes('table')) return 'var(--table)';
+  return 'var(--files)'; // default
+};
+
+// Transform API data into inventory data format
+const transformApiData = (locations, supplies) => {
+  // Group supplies by location
+  const suppliesByLocation = new Map();
+  supplies.forEach(supply => {
+    const location = supply.location;
+    if (!suppliesByLocation.has(location)) {
+      suppliesByLocation.set(location, []);
+    }
+    suppliesByLocation.get(location).push(supply);
+  });
+
+  // Transform locations into inventory data format
+  const newInventoryData = new Map();
+  locations.forEach(location => {
+    const locationSupplies = suppliesByLocation.get(location.name) || [];
+    const inventory = locationSupplies.map(supply => ({
+      name: supply.name,
+      qty: supply.amount,
+      description: '',
+      image: null
+    }));
+
+    newInventoryData.set(location.name, {
+      title: location.name,
+      x: location.x,
+      y: location.y,
+      width: location.width,
+      height: location.height,
+      fill: getFillColor(location.type),
+      isWorkbench: location.type.toLowerCase().includes('workbench'),
+      inventory
+    });
+  });
+
+  return newInventoryData;
+};
 
 export const useInventory = () => {
   const context = useContext(InventoryContext);
@@ -31,41 +80,32 @@ export const InventoryProvider = ({ children }) => {
   const svgRef = useRef(null);
   const worldRef = useRef(null);
 
-  // Initialize inventory data
+  // Load data from API (non-blocking - allows SVG to mount immediately)
   useEffect(() => {
-    const boxes = [
-      { title: 'Workbench', x: 140, y: 300, width: 150, height: 170, fill: '#e7ebf3', isWorkbench: true },
-      { title: 'File Cabinet A', x: 140, y: 700, width: 200, height: 260, fill: 'var(--files)' },
-      { title: 'File Cabinet B', x: 140, y: 1000, width: 200, height: 260, fill: 'var(--files)' },
-      { title: 'Drawer T1', x: 200, y: 120, width: 190, height: 120, fill: 'var(--drawer)' },
-      { title: 'Drawer T2', x: 410, y: 120, width: 190, height: 120, fill: 'var(--drawer)' },
-      { title: 'Drawer T3', x: 620, y: 120, width: 190, height: 120, fill: 'var(--drawer)' },
-      { title: 'Drawer T4', x: 830, y: 120, width: 190, height: 120, fill: 'var(--drawer)' },
-      { title: 'Drawer T5', x: 1040, y: 120, width: 190, height: 120, fill: 'var(--drawer)' },
-      { title: 'Drawer T6', x: 1250, y: 120, width: 190, height: 120, fill: 'var(--drawer)' },
-      { title: 'Drawer R1', x: 1340, y: 320, width: 170, height: 170, fill: 'var(--drawer)' },
-      { title: 'Drawer R2', x: 1340, y: 520, width: 170, height: 170, fill: 'var(--drawer)' },
-      { title: 'Drawer R3', x: 1340, y: 720, width: 170, height: 170, fill: 'var(--drawer)' },
-      { title: 'Drawer R4', x: 1340, y: 920, width: 170, height: 170, fill: 'var(--drawer)' },
-      { title: 'Drawer R5', x: 1340, y: 1120, width: 170, height: 170, fill: 'var(--drawer)' },
-      { title: 'Table A', x: 420, y: 520, width: 300, height: 200, fill: 'var(--table)' },
-      { title: 'Table B', x: 880, y: 520, width: 300, height: 200, fill: 'var(--table)' },
-      { title: 'Table C', x: 420, y: 940, width: 300, height: 200, fill: 'var(--table)' },
-      { title: 'Table D', x: 880, y: 940, width: 300, height: 200, fill: 'var(--table)' },
-    ];
+    const loadData = async () => {
+      try {
+        // Fetch locations and supplies in parallel
+        const [locationsRes, suppliesRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/locations`),
+          fetch(`${API_BASE_URL}/supplies`)
+        ]);
 
-    const newInventoryData = new Map();
-    boxes.forEach(box => {
-      const items = box.isWorkbench ? sample(WORKBENCH_ITEMS, 4) : sample(POOL, 4);
-      const inventory = items.map(name => ({
-        name: name.trim(),
-        qty: Math.floor(Math.random() * 5) + 1,
-        description: '',
-        image: null
-      }));
-      newInventoryData.set(box.title, { ...box, inventory });
-    });
-    setInventoryData(newInventoryData);
+        if (!locationsRes.ok || !suppliesRes.ok) {
+          console.error('Failed to load data from API');
+          return;
+        }
+
+        const locations = await locationsRes.json();
+        const supplies = await suppliesRes.json();
+
+        const newInventoryData = transformApiData(locations, supplies);
+        setInventoryData(newInventoryData);
+      } catch (error) {
+        console.error('Error loading data from API:', error);
+      }
+    };
+
+    loadData();
   }, []);
 
   // Setup D3 zoom
@@ -83,6 +123,11 @@ export const InventoryProvider = ({ children }) => {
     const svg = d3.select(svgRef.current);
     svg.call(zoom).on('dblclick.zoom', null);
     svg.call(zoom.transform, d3.zoomIdentity.scale(1.03));
+
+    // Cleanup
+    return () => {
+      svg.on('.zoom', null);
+    };
   }, []);
 
   // Update CSS variables
@@ -151,13 +196,14 @@ export const InventoryProvider = ({ children }) => {
     }
   }, [inventoryData]);
 
-  const handleDrop = useCallback((targetBoxTitle) => {
+  const handleDrop = useCallback(async (targetBoxTitle) => {
     if (!draggedItemData || draggedItemData.sourceBox === targetBoxTitle) return;
 
     const sourceBoxData = inventoryData.get(draggedItemData.sourceBox);
     const targetBoxData = inventoryData.get(targetBoxTitle);
     if (!sourceBoxData || !targetBoxData) return;
 
+    // Update UI optimistically
     let newSourceInventory = [...sourceBoxData.inventory];
     let newTargetInventory = [...targetBoxData.inventory];
 
@@ -174,6 +220,50 @@ export const InventoryProvider = ({ children }) => {
 
     updateInventory(draggedItemData.sourceBox, newSourceInventory);
     updateInventory(targetBoxTitle, newTargetInventory);
+
+    // Persist to API
+    try {
+      if (draggedItemData.isMultiple) {
+        // Move each item individually
+        await Promise.all(draggedItemData.items.map(item =>
+          fetch(`${API_BASE_URL}/supplies/move`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: item.name,
+              from_location: draggedItemData.sourceBox,
+              to_location: targetBoxTitle,
+              amount: item.qty
+            })
+          })
+        ));
+      } else {
+        // Move single item
+        await fetch(`${API_BASE_URL}/supplies/move`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: draggedItemData.item.name,
+            from_location: draggedItemData.sourceBox,
+            to_location: targetBoxTitle,
+            amount: draggedItemData.item.qty
+          })
+        });
+      }
+    } catch (error) {
+      console.error('Error persisting move to API:', error);
+      // On error, reload data from API to sync state
+      const [locationsRes, suppliesRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/locations`),
+        fetch(`${API_BASE_URL}/supplies`)
+      ]);
+      if (locationsRes.ok && suppliesRes.ok) {
+        const locations = await locationsRes.json();
+        const supplies = await suppliesRes.json();
+        const newInventoryData = transformApiData(locations, supplies);
+        setInventoryData(newInventoryData);
+      }
+    }
 
     // Auto-select the target box after successful drop
     setSelectedBox(targetBoxTitle);
