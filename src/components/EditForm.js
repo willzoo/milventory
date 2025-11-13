@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useInventory } from '../context/InventoryContext';
 
 const EditForm = () => {
-  const { currentEditingBox, currentEditingIndex, inventoryData, setCurrentEditingBox, setCurrentEditingIndex, setLastSelectedIndex, updateInventory, editFormHeight, setEditFormHeight } = useInventory();
+  const { currentEditingBox, currentEditingIndex, inventoryData, setCurrentEditingBox, setCurrentEditingIndex, setLastSelectedIndex, reloadData, editFormHeight, setEditFormHeight } = useInventory();
   
   const boxData = currentEditingBox ? inventoryData.get(currentEditingBox) : null;
   const item = boxData && currentEditingIndex !== null ? boxData.inventory[currentEditingIndex] : null;
@@ -12,8 +12,11 @@ const EditForm = () => {
   const [description, setDescription] = useState('');
   const [image, setImage] = useState(null);
   const [isResizingEditForm, setIsResizingEditForm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const nameInputRef = useRef(null);
   const editFormResizeRef = useRef(null);
+
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
     if (item) {
@@ -30,22 +33,61 @@ const EditForm = () => {
     }
   }, [item]);
 
-  const handleSave = () => {
-    if (currentEditingBox !== null && currentEditingIndex !== null && name.trim()) {
-      const boxData = inventoryData.get(currentEditingBox);
-      if (boxData) {
-        const newInventory = [...boxData.inventory];
-        newInventory[currentEditingIndex] = {
-          ...newInventory[currentEditingIndex],
-          name: name.trim(),
-          qty: parseInt(qty) || 1,
-          description: description.trim(),
-          image: image
-        };
-        updateInventory(currentEditingBox, newInventory);
+  const handleSave = async () => {
+    if (currentEditingBox !== null && currentEditingIndex !== null && name.trim() && !isSaving && item) {
+      setIsSaving(true);
+      try {
+        const nameChanged = name.trim() !== item.name;
+        const qtyChanged = parseInt(qty) || 1 !== item.qty;
+
+        if (nameChanged) {
+          // Name changed: delete old supply and create new one
+          if (item.id) {
+            // Delete old supply
+            await fetch(`${API_BASE_URL}/supplies/${item.id}`, {
+              method: 'DELETE'
+            });
+          }
+          // Create new supply with new name
+          const createResponse = await fetch(`${API_BASE_URL}/supplies`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: name.trim(),
+              amount: parseInt(qty) || 1,
+              location: currentEditingBox
+            })
+          });
+
+          if (!createResponse.ok) {
+            const error = await createResponse.json();
+            throw new Error(error.error || 'Failed to update supply');
+          }
+        } else if (qtyChanged && item.id) {
+          // Only qty changed: update amount
+          const updateResponse = await fetch(`${API_BASE_URL}/supplies/${item.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              amount: parseInt(qty) || 1
+            })
+          });
+
+          if (!updateResponse.ok) {
+            const error = await updateResponse.json();
+            throw new Error(error.error || 'Failed to update supply');
+          }
+        }
+
+        // Reload data to sync with API
+        await reloadData();
         setCurrentEditingBox(null);
         setCurrentEditingIndex(null);
         setLastSelectedIndex(null);
+      } catch (error) {
+        console.error('Error updating supply:', error);
+        alert(`Failed to update item: ${error.message || 'Unknown error'}`);
+        setIsSaving(false);
       }
     }
   };
@@ -138,11 +180,11 @@ const EditForm = () => {
             onChange={(e) => setDescription(e.target.value)}
           />
           <div className="edit-form-actions">
-            <button type="button" className="cancel" onClick={handleCancel}>
+            <button type="button" className="cancel" onClick={handleCancel} disabled={isSaving}>
               Cancel
             </button>
-            <button type="button" className="save" onClick={handleSave}>
-              Save
+            <button type="button" className="save" onClick={handleSave} disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save'}
             </button>
           </div>
         </div>

@@ -27,16 +27,17 @@ const transformApiData = (locations, supplies) => {
     suppliesByLocation.get(location).push(supply);
   });
 
-  // Transform locations into inventory data format
-  const newInventoryData = new Map();
-  locations.forEach(location => {
-    const locationSupplies = suppliesByLocation.get(location.name) || [];
-    const inventory = locationSupplies.map(supply => ({
-      name: supply.name,
-      qty: supply.amount,
-      description: '',
-      image: null
-    }));
+    // Transform locations into inventory data format
+    const newInventoryData = new Map();
+    locations.forEach(location => {
+      const locationSupplies = suppliesByLocation.get(location.name) || [];
+      const inventory = locationSupplies.map(supply => ({
+        id: supply.id,
+        name: supply.name,
+        qty: supply.amount,
+        description: '',
+        image: null
+      }));
 
     newInventoryData.set(location.name, {
       title: location.name,
@@ -275,6 +276,25 @@ export const InventoryProvider = ({ children }) => {
     setCurrentDragOverBox(null);
   }, [draggedItemData, inventoryData, updateInventory]);
 
+  // Reload data from API
+  const reloadData = useCallback(async () => {
+    try {
+      const [locationsRes, suppliesRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/locations`),
+        fetch(`${API_BASE_URL}/supplies`)
+      ]);
+
+      if (locationsRes.ok && suppliesRes.ok) {
+        const locations = await locationsRes.json();
+        const supplies = await suppliesRes.json();
+        const newInventoryData = transformApiData(locations, supplies);
+        setInventoryData(newInventoryData);
+      }
+    } catch (error) {
+      console.error('Error reloading data from API:', error);
+    }
+  }, []);
+
   const value = {
     // State
     inventoryData,
@@ -311,6 +331,7 @@ export const InventoryProvider = ({ children }) => {
     updateInventory,
     handleDragStart,
     handleDrop,
+    reloadData,
   };
 
   return (
